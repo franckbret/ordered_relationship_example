@@ -56,7 +56,7 @@ lint: ## check style with flake8
 	flake8 ordered_relationship_example
 
 test: ## run tests
-	ANYBLOK_CONFIG_FILE=app.test.cfg pytest -v -s ordered_relationship_example
+	ANYBLOK_CONFIG_FILE=app.test.cfg py.test -v -s ordered_relationship_example
 
 documentation: ## generate documentation
 	anyblok_doc -c app.test.cfg --doc-format RST --doc-output doc/source/apidoc.rst
