@@ -46,10 +46,16 @@ class TodoItem:
         label="Todo list",
         model=Model.TodoList,
         nullable=False,
-        one2many="todo_items",
-        # The following 2 arguments have no impact on ordering
-        # order_by="ModelTodoItem.position",
-        # collection_class=ordering_list('position')
+        one2many=(
+            "todo_items",
+            dict(
+                # I understand it is sioux, it is the way to apply
+                # the two argument on the One2Many, else the argument
+                # is on the Many2One it is a non sens here
+                order_by="ModelTodoItem.position",
+                collection_class=ordering_list('position'),
+            )
+        )
     )
 
     def __str__(self):
@@ -95,7 +101,7 @@ class Survey:
 
 # Playlist with tracks
 
-@Declarations.register(Model, tablename="join_playlist_and_track_for_tracks")
+@Declarations.register(Model)
 class PlaylistTrack:
     track_id = Integer(
         primary_key=True,
@@ -116,6 +122,9 @@ class Track:
     name = String(label="Name", nullable=False)
 
 
+# I remove the table name is use less because
+# when join_model is defined so the join_table argument
+# is ignored and the primary join is automaticly filled
 @Declarations.register(Model)
 class Playlist:
     id = Integer(primary_key=True)
@@ -124,7 +133,6 @@ class Playlist:
     tracks = Many2Many(
         label="Tracks",
         model=Model.Track,
-        join_table="join_playlist_and_track_for_tracks",
         join_model=Model.PlaylistTrack,
         local_columns="id",
         remote_columns="id",
@@ -133,8 +141,6 @@ class Playlist:
         # The following 2 arguments have no impact on ordering
         order_by="ModelPlaylistTrack.position",
         collection_class=ordering_list('position'),
-        #primaryjoin="ModelPlaylistTrack.track_id == Model.id",
-        #primaryjoin="ModelPlaylist.id == ModelPlaylistTrack.playlist_id",
       )
 
     def _sort_tracks_by_position(self):
