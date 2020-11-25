@@ -39,16 +39,7 @@ class TestTodoList:
         # This one obviously fail because position value is the not the same as insert order
         expected = [item2, item1, item3]
 
-        with pytest.raises(AssertionError):
-            assert personal.todo_items == expected
-
-        # but should be ok using a dedicated sort function on todolist
-        ordered = personal.get_ordered_items()
-
-        assert expected == ordered
-
-        for i, item in enumerate(ordered):
-            assert item.position == i
+        assert personal.todo_items == expected
 
 
 class TestSurvey:
@@ -119,7 +110,7 @@ class TestPlaylist:
         registry.PlaylistTrack.insert(playlist_id=playlist.id, track_id=t2.id, position=1)
 
         expected = [t1, t2, t3]
-        
+
         # this one should fail ??? Does it maeans adding order_by clause on many2many definition
         # works ?
         assert playlist.tracks == expected
@@ -139,7 +130,7 @@ class TestPlaylist:
         registry.PlaylistTrack.insert(playlist_id=playlist.id, track_id=t2.id, position=1)
 
         expected = [t1, t2, t3]
-        
+
         # this one should fail ??? Does it maeans adding order_by clause on many2many definition
         # works ?
         assert playlist.tracks == expected
