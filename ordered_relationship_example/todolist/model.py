@@ -14,27 +14,11 @@ Model = Declarations.Model
 
 # A todolist with a many2one on todoitem
 
+
 @Declarations.register(Model)
 class TodoList:
     id = Integer(primary_key=True)
     name = String(label="Name", unique=True, nullable=False)
-
-    def _sort_items_by_position(self):
-        self.todo_items.sort(key=lambda x: getattr(x, 'position'))
-
-    @hybrid_method
-    def get_ordered_items(self):
-        if not self.todo_items:
-            return
-        self._sort_items_by_position()
-        return self.todo_items
-
-    def __str__(self):
-        return ("{self.name}").format(self=self)
-
-    def __repr__(self):
-        msg = "<TodoList: {self.name}, {self.id}>"
-        return msg.format(self=self)
 
 
 @Declarations.register(Model)
@@ -46,16 +30,17 @@ class TodoItem:
         label="Todo list",
         model=Model.TodoList,
         nullable=False,
+        foreign_key_options={"ondelete": "cascade"},
         one2many=(
             "todo_items",
             dict(
-                # I understand it is sioux, it is the way to apply
+                #  I understand it is sioux, it is the way to apply
                 # the two argument on the One2Many, else the argument
                 # is on the Many2One it is a non sens here
                 order_by="ModelTodoItem.position",
-                collection_class=ordering_list('position'),
-            )
-        )
+                collection_class=ordering_list("position"),
+            ),
+        ),
     )
 
     def __str__(self):
@@ -73,7 +58,7 @@ class Question:
     id = Integer(primary_key=True)
     name = String(label="Name", nullable=False)
     survey_id = Integer(foreign_key="Model.Survey=>id")
-    position = Integer(label="Position", nullable=False)
+    position = Integer(label="Position", nullable=True)
 
 
 @Declarations.register(Model)
@@ -83,26 +68,17 @@ class Survey:
     questions = One2Many(
         label="Survey questions",
         model=Model.Question,
-        # The following 2 arguments have no impact on ordering
-        # order_by="ModelQuestion.position",
-        # collection_class=ordering_list('position'),
+        order_by="ModelQuestion.position",
+        collection_class=ordering_list("position"),
     )
-
-    def _sort_questions_by_position(self):
-        self.questions.sort(key=lambda x: getattr(x, 'position'))
-
-    @hybrid_method
-    def get_ordered_questions(self):
-        if not self.questions:
-            return
-        self._sort_questions_by_position()
-        return self.questions
 
 
 # Playlist with tracks
 
+
 @Declarations.register(Model)
 class PlaylistTrack:
+
     track_id = Integer(
         primary_key=True,
         autoincrement=False,
@@ -138,19 +114,6 @@ class Playlist:
         remote_columns="id",
         m2m_local_columns="playlist_id",
         m2m_remote_columns="track_id",
-        # The following 2 arguments have no impact on ordering
         order_by="ModelPlaylistTrack.position",
-        collection_class=ordering_list('position'),
-      )
-
-    def _sort_tracks_by_position(self):
-        cls = self.registry.PlaylistTrack
-        ordered = cls.query('track_id').filter_by(playlist_id=self.id).order_by(cls.position).all()
-        tracks = [self.registry.Track.query().get(x) for x in ordered]
-        return tracks
-
-    @hybrid_method
-    def get_ordered_tracks(self):
-        if not self.tracks:
-            return
-        return self._sort_tracks_by_position()
+        collection_class=ordering_list("position"),
+    )

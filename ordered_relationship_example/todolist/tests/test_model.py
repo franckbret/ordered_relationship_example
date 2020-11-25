@@ -5,134 +5,132 @@ from pprint import pprint as pp
 class TestTodoList:
     """ Test python api on AnyBlok models"""
 
-    def test_create_todolist(self, rollback_registry):
+    def test_insert_without_position(self, rollback_registry):
         registry = rollback_registry
+
+        personal = registry.TodoList.insert(name="personal")
+        item1 = registry.TodoItem.insert(todo_list=personal, name="buy milk")
+
+    def test_orderinglist(self, rollback_registry):
+        registry = rollback_registry
+
         personal = registry.TodoList.insert(name="personal")
 
-        assert registry.TodoList.query().count() == 1
-        assert personal.name == "personal"
+        assert personal.todo_items == []
+        assert personal.todo_items.ordering_attr == "position"
 
-        item1 = registry.TodoItem.insert(todo_list=personal, name="buy milk", position=0)
-        item2 = registry.TodoItem.insert(todo_list=personal, name="buy cheese", position=1)
-        item3 = registry.TodoItem.insert(todo_list=personal, name="buy eggs", position=2)
+        item1 = registry.TodoItem.insert(todo_list=personal, name="buy milk")
 
-        assert len(personal.todo_items) == 3
+        assert len(personal.todo_items) == 1
+        assert personal.todo_items[0] == item1
+        assert personal.todo_items[0].position == 0
 
-        # This one works because position value is the same as insert order
-        for i, item in enumerate(personal.todo_items):
-            assert item.position == i
+        item2 = registry.TodoItem.insert(todo_list=personal, name="buy cheese")
 
+        assert len(personal.todo_items) == 2
+        assert personal.todo_items[1] == item2
+        assert personal.todo_items[1].position == 1
 
-    def test_create_todolist_unordered_positions(self, rollback_registry):
-        registry = rollback_registry
-        personal = registry.TodoList.insert(name="personal")
+        assert personal.todo_items == [item1, item2]
 
-        assert registry.TodoList.query().count() == 1
-        assert personal.name == "personal"
+        # reorder through relationship
+        personal.todo_items = [item2, item1]
 
-        item1 = registry.TodoItem.insert(todo_list=personal, name="buy milk", position=1)
-        item2 = registry.TodoItem.insert(todo_list=personal, name="buy cheese", position=0)
-        item3 = registry.TodoItem.insert(todo_list=personal, name="buy eggs", position=2)
+        assert personal.todo_items == [item2, item1]
+        assert personal.todo_items[0] == item2
 
-        assert len(personal.todo_items) == 3
+        with pytest.raises(AssertionError):
+            assert personal.todo_items[0].position == 0
 
-        # This one obviously fail because position value is the not the same as insert order
-        expected = [item2, item1, item3]
+        # explicitely reorder and refresh records
+        personal.todo_items.reorder()
+        assert personal.todo_items[0].position == 0
+        assert personal.todo_items == [item2, item1]
 
-        assert personal.todo_items == expected
+        # reorder through record
+        item1.position = 0
+        item2.position = 1
+        assert item1.position == 0
+        assert item2.position == 1
+
+        with pytest.raises(AssertionError):
+            assert personal.todo_items[0] == item1
+            assert personal.todo_items[0].position == 0
+            assert personal.todo_items[1] == item2
+            assert personal.todo_items[1].position == 1
+
+        personal.refresh()
+        item1.refresh()
+        item2.refresh()
+        personal.todo_items.reorder()
+
+        assert personal.todo_items[0] == item1
+        assert personal.todo_items[0].position == 0
+        assert personal.todo_items[1] == item2
+        assert personal.todo_items[1].position == 1
+
+        assert personal.todo_items == [item1, item2]
+
+        # insert with position
+        item3 = registry.TodoItem.insert(
+            todo_list=personal, name="buy eggs", position=2
+        )
+        assert personal.todo_items == [item1, item2, item3]
+
+        # delete related record
+        item1.delete()
+        assert registry.TodoItem.query().count() == 2
+        assert personal.todo_items == [item2, item3]
+        personal.todo_items.reorder()
+        assert personal.todo_items[0] == item2
+        assert personal.todo_items[0].position == 0
+
+        # remove reference from related list
+        personal.todo_items.remove(item3)
+        assert personal.todo_items == [item2]
+        assert personal.todo_items[0] == item2
+        assert personal.todo_items[0].position == 0
+        assert registry.TodoItem.query().count() == 1
 
 
 class TestSurvey:
     """ Test python api on AnyBlok models"""
 
-    def test_create_survey(self, rollback_registry):
+    def test_insert(self, rollback_registry):
         registry = rollback_registry
         survey = registry.Survey.insert(name="first")
 
-        assert registry.Survey.query().count() == 1
-        assert survey.name == "first"
+        assert survey.questions.ordering_attr == "position"
 
-        q1 = registry.Question.insert(name="one", position=0)
-        q2 = registry.Question.insert(name="two", position=1)
-        q3 = registry.Question.insert(name="three", position=2)
+        q1 = registry.Question.insert(name="one", survey_id=survey.id)
+        q2 = registry.Question.insert(name="two")
+        survey.questions.append(q2)
+        q3 = registry.Question.insert(
+            name="three", survey_id=survey.id, position=2
+        )
+        expected = [q1, q2, q3]
 
-        # here we add children (questions) through parent object (survey)
-        survey.questions.clear()
-        survey.questions.extend([q2, q3, q1])
+        survey.questions.reorder()
 
         assert len(survey.questions) == 3
-
-        expected = [q1, q2, q3]
-        with pytest.raises(AssertionError):
-            assert survey.questions == expected
-
-        ordered = survey.get_ordered_questions()
-
-        assert expected == ordered
-
-        for i, item in enumerate(ordered):
-            assert item.position == i
+        assert survey.questions == expected
+        for i, question in enumerate(survey.questions):
+            assert question.position == i
 
 
 class TestPlaylist:
     """ Test python api on AnyBlok models"""
 
-    def test_playlist_insert_unordered_track_without_position(self, rollback_registry):
+    def test_playlist_insert(self, rollback_registry):
         registry = rollback_registry
         playlist = registry.Playlist.insert(name="first")
 
-        t2 = registry.Track.insert(name="two")
-        t3 = registry.Track.insert(name="three")
-        t1 = registry.Track.insert(name="one")
+        assert playlist.tracks.ordering_attr == "position"
 
-        registry.PlaylistTrack.insert(playlist_id=playlist.id, track_id=t3.id)
+        t1 = registry.Track.insert(name="one")
         registry.PlaylistTrack.insert(playlist_id=playlist.id, track_id=t1.id)
-        registry.PlaylistTrack.insert(playlist_id=playlist.id, track_id=t2.id)
-
-        expected = [t1, t2, t3]
-        # seems logic that those one fail
-        with pytest.raises(AssertionError):
-            assert playlist.tracks == expected
-
-        with pytest.raises(AssertionError):
-            assert playlist.get_ordered_tracks() == expected
-
-    def test_playlist_insert_unordered_track_with_position(self, rollback_registry):
-        registry = rollback_registry
-        playlist = registry.Playlist.insert(name="first")
 
         t2 = registry.Track.insert(name="two")
-        t3 = registry.Track.insert(name="three")
-        t1 = registry.Track.insert(name="one")
+        playlist.tracks.append(t2)
 
-        registry.PlaylistTrack.insert(playlist_id=playlist.id, track_id=t3.id, position=2)
-        registry.PlaylistTrack.insert(playlist_id=playlist.id, track_id=t1.id, position=0)
-        registry.PlaylistTrack.insert(playlist_id=playlist.id, track_id=t2.id, position=1)
-
-        expected = [t1, t2, t3]
-
-        # this one should fail ??? Does it maeans adding order_by clause on many2many definition
-        # works ?
-        assert playlist.tracks == expected
-        # this one should pass
-        assert playlist.get_ordered_tracks() == expected
-
-    def test_playlist_insert_unordered_track_with_position(self, rollback_registry):
-        registry = rollback_registry
-        playlist = registry.Playlist.insert(name="first")
-
-        t2 = registry.Track.insert(name="two")
-        t3 = registry.Track.insert(name="three")
-        t1 = registry.Track.insert(name="one")
-
-        registry.PlaylistTrack.insert(playlist_id=playlist.id, track_id=t3.id, position=2)
-        registry.PlaylistTrack.insert(playlist_id=playlist.id, track_id=t1.id, position=0)
-        registry.PlaylistTrack.insert(playlist_id=playlist.id, track_id=t2.id, position=1)
-
-        expected = [t1, t2, t3]
-
-        # this one should fail ??? Does it maeans adding order_by clause on many2many definition
-        # works ?
-        assert playlist.tracks == expected
-        # this one should pass
-        assert playlist.get_ordered_tracks() == expected
+        assert len(playlist.tracks) == 2
