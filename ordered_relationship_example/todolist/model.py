@@ -1,15 +1,41 @@
-"""demo Example model, this model is goging to create table at startup
+"""demo Example model, this model is going to create table at startup
 """
 from anyblok import Declarations
 from anyblok.column import Integer, String
-from anyblok.relationship import Many2One, One2Many, Many2Many
+from anyblok.relationship import Many2One, One2Many, Many2Many, ordering_list
 from anyblok.declarations import hybrid_method
-
-from sqlalchemy.ext.orderinglist import ordering_list
-from operator import itemgetter
 
 
 Model = Declarations.Model
+
+# Basic mann2many between two tables
+
+
+@Declarations.register(Model)
+class Address:
+
+    id = Integer(primary_key=True)
+    street = String()
+    zip = String()
+    city = String()
+
+
+@Declarations.register(Model)
+class Person:
+
+    name = String(primary_key=True)
+    addresses = Many2Many(
+        model=Model.Address,
+        many2many=(
+            "persons",
+            dict(
+                order_by="ModelPerson.name",
+                collection_class=ordering_list("name"),
+            ),
+        ),
+        order_by="ModelAddress.city",
+        collection_class=ordering_list("city"),
+    )
 
 
 # A todolist with a many2one on todoitem
@@ -25,7 +51,7 @@ class TodoList:
 class TodoItem:
     id = Integer(primary_key=True)
     name = String(label="Name", nullable=False)
-    position = Integer(label="Position", nullable=False)
+    position = Integer(label="Position")
     todo_list = Many2One(
         label="Todo list",
         model=Model.TodoList,
@@ -34,9 +60,6 @@ class TodoItem:
         one2many=(
             "todo_items",
             dict(
-                #  I understand it is sioux, it is the way to apply
-                # the two argument on the One2Many, else the argument
-                # is on the Many2One it is a non sens here
                 order_by="ModelTodoItem.position",
                 collection_class=ordering_list("position"),
             ),
@@ -89,7 +112,9 @@ class PlaylistTrack:
         autoincrement=False,
         foreign_key="Model.Playlist=>id",
     )
-    position = Integer(label="Position of a track within a playlist")
+    position = Integer(
+        label="Position of a track within a playlist", primary_key=True
+    )
 
 
 @Declarations.register(Model)
@@ -98,22 +123,63 @@ class Track:
     name = String(label="Name", nullable=False)
 
 
-# I remove the table name is use less because
-# when join_model is defined so the join_table argument
-# is ignored and the primary join is automaticly filled
 @Declarations.register(Model)
 class Playlist:
     id = Integer(primary_key=True)
     name = String(label="Name", nullable=False)
 
     tracks = Many2Many(
-        label="Tracks",
         model=Model.Track,
         join_model=Model.PlaylistTrack,
-        local_columns="id",
-        remote_columns="id",
-        m2m_local_columns="playlist_id",
-        m2m_remote_columns="track_id",
         order_by="ModelPlaylistTrack.position",
         collection_class=ordering_list("position"),
+        #        many2many=(
+        #            "playlists",
+        #            dict(
+        #                order_by="ModelPlaylistTrack.position",
+        #                collection_class=ordering_list('position'),
+        #            )
+        #        ),
     )
+
+
+@Declarations.register(Declarations.Model)
+class Guest:
+    id = Integer(primary_key=True)
+    name = String(nullable=False)
+
+    def __repr__(self):
+        return "<Guest(name={self.name!r})>".format(self=self)
+
+
+@Declarations.register(Declarations.Model)
+class EventGuest:
+    guest = Many2One(
+        model=Declarations.Model.Guest,
+        primary_key=True,
+        column_names="guest_id",
+    )
+    event = Many2One(
+        model="Model.Event",
+        primary_key=True,
+        column_names="event_id",
+    )
+    position = Integer(label="Position of guest at an event")
+
+
+@Declarations.register(Declarations.Model)
+class Event:
+    id = Integer(primary_key=True)
+    name = String(nullable=False)
+
+    guests = Many2Many(
+        model=Model.Guest,
+        join_model=Model.EventGuest,
+        order_by="ModelEventGuest.position",
+        collection_class=ordering_list("position"),
+    )
+
+    def __repr__(self):
+        return "<Event(name={self.name!r}, guests={self.guests!r})>".format(
+            self=self
+        )
