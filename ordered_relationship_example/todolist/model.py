@@ -3,7 +3,6 @@
 from anyblok import Declarations
 from anyblok.column import Integer, String
 from anyblok.relationship import Many2One, One2Many, Many2Many, ordering_list
-from anyblok.declarations import hybrid_method
 
 
 Model = Declarations.Model
@@ -70,7 +69,10 @@ class TodoItem:
         return ("{self.position} {self.name}").format(self=self)
 
     def __repr__(self):
-        msg = "<TodoItem: position={self.position}, name={self.name}, id={self.id}>"
+        msg = (
+            "<TodoItem: position={self.position}, name={self.name}, "
+            "id={self.id}>"
+        )
         return msg.format(self=self)
 
 
@@ -128,19 +130,24 @@ class Playlist:
     id = Integer(primary_key=True)
     name = String(label="Name", nullable=False)
 
-    tracks = Many2Many(
-        model=Model.Track,
-        join_model=Model.PlaylistTrack,
+    tracks = One2Many(
+        model=Model.PlaylistTrack,
         order_by="ModelPlaylistTrack.position",
         collection_class=ordering_list("position"),
-        #        many2many=(
-        #            "playlists",
-        #            dict(
-        #                order_by="ModelPlaylistTrack.position",
-        #                collection_class=ordering_list('position'),
-        #            )
-        #        ),
     )
+    # tracks = Many2Many(
+    #     model=Model.Track,
+    #     join_model=Model.PlaylistTrack,
+    #     order_by="ModelPlaylistTrack.position",
+    #     collection_class=ordering_list("position"),
+    #     #        many2many=(
+    #     #            "playlists",
+    #     #            dict(
+    #     #                order_by="ModelPlaylistTrack.position",
+    #     #                collection_class=ordering_list('position'),
+    #     #            )
+    #     #        ),
+    # )
 
 
 @Declarations.register(Declarations.Model)
