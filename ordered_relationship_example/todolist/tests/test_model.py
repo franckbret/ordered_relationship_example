@@ -135,9 +135,15 @@ class TestPlaylist:
         registry.flush()
         playlist.refresh()
 
-        playlist.tracks.append(t2)
+        # insert = call __init__ + add in session + flush of the object
+        # (only if insert is not overwrite)
+        playlist.tracks.append(registry.PlaylistTrack(track_id=t2.id))
+        # flush after append because playlist_id is filled by one2many and
+        # added in the session. flush is also call before commit
+        registry.flush()
 
         assert len(playlist.tracks) == 2
+        assert playlist.tracks.track_id == [t1.id, t2.id]
 
 
 class TestEvent:
