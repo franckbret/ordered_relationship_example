@@ -4,4 +4,4 @@ flake8
 WebTest
 sphinx
 sphinxcontrib-httpdomain
--e git://github.com/jssuzanne/AnyBlok.git@issue_163_backref_with_options#egg=anyblok
+-e git+https://github.com/jssuzanne/AnyBlok.git@issue_163_backref_with_options#egg=anyblok
